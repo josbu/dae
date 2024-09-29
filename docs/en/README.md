@@ -70,6 +70,8 @@ Check them using command like:
 
 > **Note**: `Armbian` users can follow the [**Upgrade Guide**](user-guide/kernel-upgrade.md) to upgrade the kernel to meet the kernel configuration requirement.
 
+> `Arch Linux ARM` users can use [linux-aarch64-7ji](https://github.com/7Ji-PKGBUILDs/linux-aarch64-7ji) which meets the kernel configuration requirement of dae.
+
 ## Installation
 
 ### Arch Linux / Manjaro
@@ -194,7 +196,7 @@ subscription {
 # See https://github.com/daeuniverse/dae/blob/main/docs/en/configuration/dns.md for full examples.
 dns {
   upstream {
-    googledns: 'tcp+udp://dns.google.com:53'
+    googledns: 'tcp+udp://dns.google:53'
     alidns: 'udp://dns.alidns.com:53'
   }
   routing {

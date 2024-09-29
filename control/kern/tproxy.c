@@ -302,14 +302,14 @@ enum __attribute__((packed)) MatchType {
 
 enum L4ProtoType {
 	L4ProtoType_TCP = 1,
-	L4ProtoType_UDP = 2,
-	L4ProtoType_X = 3,
+	L4ProtoType_UDP,
+	L4ProtoType_X,
 };
 
 enum IpVersionType {
 	IpVersionType_4 = 1,
-	IpVersionType_6 = 2,
-	IpVersionType_X = 3,
+	IpVersionType_6,
+	IpVersionType_X,
 };
 
 struct port_range {
@@ -408,7 +408,7 @@ static __always_inline __u8 ipv4_get_dscp(const struct iphdr *iph)
 
 static __always_inline __u8 ipv6_get_dscp(const struct ipv6hdr *ipv6h)
 {
-	return (ipv6h->priority << 2) + (ipv6h->flow_lbl[0] >> 6);
+	return (ipv6h->priority << 2) | (ipv6h->flow_lbl[0] >> 6);
 }
 
 static __always_inline void
@@ -1112,9 +1112,9 @@ new_connection:
 	__be32 mac[4] = {
 		0,
 		0,
-		bpf_htonl((ethh.h_source[0] << 8) + (ethh.h_source[1])),
-		bpf_htonl((ethh.h_source[2] << 24) + (ethh.h_source[3] << 16) +
-			  (ethh.h_source[4] << 8) + (ethh.h_source[5])),
+		bpf_htonl((ethh.h_source[0] << 8) | (ethh.h_source[1])),
+		bpf_htonl((ethh.h_source[2] << 24) | (ethh.h_source[3] << 16) |
+			  (ethh.h_source[4] << 8) | (ethh.h_source[5])),
 	};
 	__s64 s64_ret;
 
@@ -1288,15 +1288,15 @@ refresh_udp_conn_state_timer(struct tuples_key *key, bool is_egress)
 	if (unlikely(!value))
 		return NULL;
 
-	if ((ret = bpf_timer_init(&value->timer, &udp_conn_state_map,
-				  CLOCK_MONOTONIC)))
+	if ((bpf_timer_init(&value->timer, &udp_conn_state_map,
+			    CLOCK_MONOTONIC)))
 		goto retn;
 
-	if ((ret = bpf_timer_set_callback(&value->timer,
-					  refresh_udp_conn_state_timer_cb)))
+	if ((bpf_timer_set_callback(&value->timer,
+				    refresh_udp_conn_state_timer_cb)))
 		goto retn;
 
-	if ((ret = bpf_timer_start(&value->timer, TIMEOUT_UDP_CONN_STATE, 0)))
+	if ((bpf_timer_start(&value->timer, TIMEOUT_UDP_CONN_STATE, 0)))
 		goto retn;
 
 retn:
@@ -1405,11 +1405,11 @@ int tproxy_wan_egress(struct __sk_buff *skb)
 			__be32 mac[4] = {
 				0,
 				0,
-				bpf_htonl((ethh.h_source[0] << 8) +
+				bpf_htonl((ethh.h_source[0] << 8) |
 					  (ethh.h_source[1])),
-				bpf_htonl((ethh.h_source[2] << 24) +
-					  (ethh.h_source[3] << 16) +
-					  (ethh.h_source[4] << 8) +
+				bpf_htonl((ethh.h_source[2] << 24) |
+					  (ethh.h_source[3] << 16) |
+					  (ethh.h_source[4] << 8) |
 					  (ethh.h_source[5])),
 			};
 			__s64 s64_ret;
@@ -1532,10 +1532,10 @@ int tproxy_wan_egress(struct __sk_buff *skb)
 		__be32 mac[4] = {
 			0,
 			0,
-			bpf_htonl((ethh.h_source[0] << 8) + (ethh.h_source[1])),
-			bpf_htonl((ethh.h_source[2] << 24) +
-				  (ethh.h_source[3] << 16) +
-				  (ethh.h_source[4] << 8) + (ethh.h_source[5])),
+			bpf_htonl((ethh.h_source[0] << 8) | (ethh.h_source[1])),
+			bpf_htonl((ethh.h_source[2] << 24) |
+				  (ethh.h_source[3] << 16) |
+				  (ethh.h_source[4] << 8) | (ethh.h_source[5])),
 		};
 		__s64 s64_ret;
 
@@ -1639,17 +1639,23 @@ int tproxy_dae0_ingress(struct __sk_buff *skb)
 	struct redirect_tuple redirect_tuple = {};
 
 	if (skb->protocol == bpf_htons(ETH_P_IP)) {
-		bpf_skb_load_bytes(skb, ETH_HLEN + offsetof(struct iphdr, daddr),
+		bpf_skb_load_bytes(skb,
+				   ETH_HLEN + offsetof(struct iphdr, daddr),
 				   &redirect_tuple.sip.u6_addr32[3],
 				   sizeof(redirect_tuple.sip.u6_addr32[3]));
-		bpf_skb_load_bytes(skb, ETH_HLEN + offsetof(struct iphdr, saddr),
+		bpf_skb_load_bytes(skb,
+				   ETH_HLEN + offsetof(struct iphdr, saddr),
 				   &redirect_tuple.dip.u6_addr32[3],
 				   sizeof(redirect_tuple.dip.u6_addr32[3]));
 	} else {
-		bpf_skb_load_bytes(skb, ETH_HLEN + offsetof(struct ipv6hdr, daddr),
-				   &redirect_tuple.sip, sizeof(redirect_tuple.sip));
-		bpf_skb_load_bytes(skb, ETH_HLEN + offsetof(struct ipv6hdr, saddr),
-				   &redirect_tuple.dip, sizeof(redirect_tuple.dip));
+		bpf_skb_load_bytes(skb,
+				   ETH_HLEN + offsetof(struct ipv6hdr, daddr),
+				   &redirect_tuple.sip,
+				   sizeof(redirect_tuple.sip));
+		bpf_skb_load_bytes(skb,
+				   ETH_HLEN + offsetof(struct ipv6hdr, saddr),
+				   &redirect_tuple.dip,
+				   sizeof(redirect_tuple.dip));
 	}
 	struct redirect_entry *redirect_entry =
 		bpf_map_lookup_elem(&redirect_track, &redirect_tuple);
@@ -1707,7 +1713,7 @@ static __always_inline int _update_map_elem_by_cookie(const __u64 cookie)
 			// __builtin_memset(&buf, 0, MAX_ARG_SCANNER_BUFFER_SIZE);
 			unsigned long to_read = arg_end - (arg_start + j);
 
-			if (to_read >= MAX_ARG_SCANNER_BUFFER_SIZE)
+			if (to_read > MAX_ARG_SCANNER_BUFFER_SIZE)
 				to_read = MAX_ARG_SCANNER_BUFFER_SIZE;
 			else
 				buf[to_read] = 0;
@@ -1872,11 +1878,7 @@ int local_tcp_sockops(struct bpf_sock_ops *skops)
 	{
 		struct tuples_key rev_tuple = {};
 
-		rev_tuple.l4proto = IPPROTO_TCP;
-		rev_tuple.sport = tuple.dport;
-		rev_tuple.dport = tuple.sport;
-		__builtin_memcpy(&rev_tuple.sip, &tuple.dip, IPV6_BYTE_LENGTH);
-		__builtin_memcpy(&rev_tuple.dip, &tuple.sip, IPV6_BYTE_LENGTH);
+		copy_reversed_tuples(&tuple, &rev_tuple);
 
 		struct routing_result *routing_result;
 
